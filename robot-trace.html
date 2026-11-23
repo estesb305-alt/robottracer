@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robot Trace: AP CSP Robot Review</title>
+<style>
+:root{
+  /* Light mode: "lunar daylight" */
+  --space:#E6EDF7; --nebula-a:rgba(80,120,255,.14); --nebula-b:rgba(0,190,220,.12); --star:rgba(20,40,90,.35);
+  --panel:rgba(255,255,255,.82); --panel-solid:#FFFFFF; --panel-2:#F1F5FB; --ink:#0B1430; --ink-2:#4A5878;
+  --rule:#BCCAE0; --line:#2E6FD8; --accent:#0A6FD6; --accent-ink:#FFFFFF; --glow:rgba(10,111,214,.28);
+  --gridline:#B5C6E0; --cell:#F7FAFE; --blocked:#3E4560; --hatch:#6B7395;
+  --goal:#B9C7DA; --goal-ink:#0B1430; --goal-ring:#0A6FD6;
+  --robot:#FFB400; --robot-edge:#0B1430; --flame:#FF6B2C;
+  --marker:rgba(10,111,214,.16); --marker-soft:rgba(10,111,214,.10); --crumb:#0A6FD6; --blockbg:rgba(10,111,214,.06);
+  --good:#0A5FC0; --good-bg:rgba(10,95,192,.10); --bad:#B94A10; --bad-bg:rgba(230,110,40,.12); --focus:#0A6FD6;
+  --display: "Bahnschrift","Eurostile","Microgramma","DIN Alternate","Segoe UI",system-ui,sans-serif;
+  --sans: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono: ui-monospace,"Cascadia Mono",Consolas,Menlo,"Liberation Mono",monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    /* Dark mode: deep space */
+    --space:#050816; --nebula-a:rgba(110,70,255,.22); --nebula-b:rgba(0,200,255,.14); --star:rgba(255,255,255,.75);
+    --panel:rgba(14,22,48,.78); --panel-solid:#0E1630; --panel-2:#0A1128; --ink:#E6EEFF; --ink-2:#93A3C8;
+    --rule:#26365F; --line:#3FD3FF; --accent:#3FD3FF; --accent-ink:#04101F; --glow:rgba(63,211,255,.35);
+    --gridline:#22386A; --cell:#0B1430; --blocked:#6A5A9E; --hatch:#A496D6;
+    --goal:#4F6788; --goal-ink:#04101F; --goal-ring:#3FD3FF;
+    --robot:#FFC93C; --robot-edge:#04101F; --flame:#FF7A3D;
+    --marker:rgba(63,211,255,.18); --marker-soft:rgba(63,211,255,.12); --crumb:#3FD3FF; --blockbg:rgba(63,211,255,.05);
+    --good:#5CC8FF; --good-bg:rgba(92,200,255,.12); --bad:#FF9A5C; --bad-bg:rgba(255,140,70,.14); --focus:#3FD3FF;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; font-family:var(--sans); color:var(--ink); line-height:1.5; font-size:16px; min-height:100vh;
+  background-color:var(--space);
+  background-image:
+    radial-gradient(ellipse 60% 45% at 12% 8%,var(--nebula-a),transparent 70%),
+    radial-gradient(ellipse 50% 40% at 92% 30%,var(--nebula-b),transparent 70%),
+    radial-gradient(ellipse 70% 50% at 50% 110%,var(--nebula-a),transparent 70%);
+  background-attachment:fixed;
+}
+/* Starfield: three tiled layers of tiny stars */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px,var(--star),transparent 60%),
+    radial-gradient(1px 1px at 90px 140px,var(--star),transparent 60%),
+    radial-gradient(1.5px 1.5px at 160px 60px,var(--star),transparent 60%),
+    radial-gradient(1px 1px at 230px 200px,var(--star),transparent 60%),
+    radial-gradient(2px 2px at 300px 110px,var(--star),transparent 60%),
+    radial-gradient(1px 1px at 60px 260px,var(--star),transparent 60%),
+    radial-gradient(1.5px 1.5px at 340px 290px,var(--star),transparent 60%);
+  background-size:380px 330px;
+  opacity:.9;
+}
+body::after{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:
+    radial-gradient(1px 1px at 40px 80px,var(--star),transparent 60%),
+    radial-gradient(1px 1px at 170px 20px,var(--star),transparent 60%),
+    radial-gradient(1.2px 1.2px at 120px 190px,var(--star),transparent 60%);
+  background-size:230px 240px; opacity:.55;
+}
+button{font-family:inherit}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:0 0 0 6px var(--glow)}
+
+/* Header: mission control bar */
+.top{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;padding:16px clamp(14px,4vw,40px);
+  background:linear-gradient(180deg,var(--panel),transparent);border-bottom:1px solid var(--rule);backdrop-filter:blur(6px)}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);opacity:.9}
+.brand{display:flex;align-items:center;gap:14px;margin-right:auto}
+.brand svg{width:46px;height:46px;flex:none;filter:drop-shadow(0 0 8px var(--glow))}
+.brand h1{font-family:var(--display);font-weight:600;font-size:1.95rem;line-height:1;margin:0;letter-spacing:.06em}
+.brand p{margin:4px 0 0;color:var(--ink-2);font-size:.92rem;letter-spacing:.02em}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);box-shadow:0 0 14px var(--glow)}
+.seg button{border:0;background:transparent;color:var(--ink);padding:7px 16px;font-weight:600;font-size:.95rem;cursor:pointer;letter-spacing:.02em}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.codestyle{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--ink-2)}
+.codestyle .seg button{padding:5px 12px;font-size:.88rem}
+.progress{flex-basis:100%;font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 22px;font-family:var(--mono);font-size:.82rem}
+.progress b{color:var(--accent)}
+
+main{max-width:1200px;margin:0 auto;padding:26px clamp(12px,3vw,32px) 44px}
+footer{text-align:center;padding:18px 16px 26px;font-size:.88rem;color:var(--ink-2);border-top:1px solid var(--rule)}
+
+.b{font-weight:600;font-size:.95rem;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;letter-spacing:.02em;transition:box-shadow .2s,background .2s}
+.b:hover:not(:disabled){box-shadow:0 0 14px var(--glow)}
+.b.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 0 16px var(--glow)}
+.b:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+
+code{font-family:var(--mono);font-size:.9em;background:var(--marker-soft);color:var(--ink);padding:1px 6px;border-radius:4px;border:1px solid var(--rule)}
+
+/* HUD panel look shared by big containers */
+.player,.q,.lesson-text{position:relative}
+.player::before,.q::before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;
+  background:
+    linear-gradient(var(--line),var(--line)) top left/22px 2px no-repeat,
+    linear-gradient(var(--line),var(--line)) top left/2px 22px no-repeat,
+    linear-gradient(var(--line),var(--line)) top right/22px 2px no-repeat,
+    linear-gradient(var(--line),var(--line)) top right/2px 22px no-repeat,
+    linear-gradient(var(--line),var(--line)) bottom left/22px 2px no-repeat,
+    linear-gradient(var(--line),var(--line)) bottom left/2px 22px no-repeat,
+    linear-gradient(var(--line),var(--line)) bottom right/22px 2px no-repeat,
+    linear-gradient(var(--line),var(--line)) bottom right/2px 22px no-repeat}
+
+/* Grid */
+svg.grid{display:block;width:100%;height:auto}
+.cell{fill:var(--cell);stroke:var(--gridline);stroke-width:1.2}
+.cell.blocked{fill:var(--blocked)}
+.hatch-line{stroke:var(--hatch)}
+.cell.goal{fill:var(--goal)}
+.goal-ring{fill:none;stroke:var(--goal-ring);stroke-width:2;stroke-dasharray:5 4}
+.goal-label{font:700 11px var(--display);fill:var(--goal-ink);text-anchor:middle;letter-spacing:.04em}
+.frame{fill:none;stroke:var(--line);stroke-width:2;filter:drop-shadow(0 0 4px var(--glow))}
+.coord{font:600 11px var(--mono);fill:var(--ink-2);text-anchor:middle}
+.bot{fill:var(--robot);stroke:var(--robot-edge);stroke-width:2.2;stroke-linejoin:round}
+.flame{fill:var(--flame);opacity:.85}
+.robot{transition:transform 400ms cubic-bezier(.4,.1,.2,1)}
+.crumb{fill:var(--crumb);opacity:.6}
+
+/* Code */
+.code-text{font:500 15px/1.65 var(--mono)}
+.ln{display:flex;white-space:pre;border-radius:4px}
+.gut{width:2.1em;flex:none;text-align:right;padding-right:.8em;color:var(--ink-2);opacity:.6;user-select:none}
+.ln.hl{background:var(--marker);box-shadow:inset 3px 0 0 var(--accent)}
+.ln.hl-bad{background:var(--bad-bg);box-shadow:inset 3px 0 0 var(--bad)}
+.code-blocks{display:flex;flex-direction:column;gap:6px;font:600 13px/1.3 var(--mono)}
+.blk{border:1px solid var(--line);border-radius:8px;background:var(--panel-solid)}
+.blk.cmd{padding:6px 12px;align-self:flex-start}
+.blk.ctrl{background:var(--blockbg);align-self:stretch;border-color:var(--rule)}
+.bh{padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-radius:7px}
+.bb{margin:0 10px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:var(--panel-2);display:inline-flex;gap:5px;align-items:center}
+.blk.hl,.bh.hl{background:var(--marker);box-shadow:0 0 0 1px var(--accent),0 0 12px var(--glow)}
+.blk.hl-bad,.bh.hl-bad{background:var(--bad-bg);box-shadow:0 0 0 2px var(--bad)}
+
+/* Player */
+.player{container-type:inline-size;border:1px solid var(--rule);border-radius:14px;background:var(--panel);backdrop-filter:blur(8px);padding:16px;display:flex;flex-direction:column;gap:12px}
+.runtabs{display:flex;flex-wrap:wrap;gap:6px}
+.runtabs button{border:1px solid var(--rule);border-radius:999px;padding:5px 12px;background:transparent;color:var(--ink);font-weight:600;font-size:.88rem;cursor:pointer}
+.runtabs button[aria-selected="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);box-shadow:0 0 12px var(--glow)}
+.run-note{margin:0;font-size:.95rem;color:var(--ink-2)}
+.pbody{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@container (min-width:640px){.pbody{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+.code-pane{position:relative;max-height:390px;overflow:auto;padding:10px;border:1px solid var(--rule);border-radius:10px;background:var(--panel-2)}
+.gridwrap{max-width:400px;margin:0 auto}
+.status{margin-top:10px;border:1px solid var(--rule);border-left:3px solid var(--accent);padding:9px 12px;background:var(--panel-2);border-radius:8px;min-height:100px}
+.status.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.status.good{border-left-color:var(--good);background:var(--good-bg)}
+.smsg{margin:0 0 6px;font-weight:600}
+.status dl{margin:0;display:grid;gap:2px;font-size:.88rem;font-family:var(--mono)}
+.status dl div{display:flex;gap:10px}
+.status dt{color:var(--ink-2);min-width:4.5em}
+.status dd{margin:0}
+.tf{font:700 .88em var(--mono);padding:0 6px;border-radius:4px}
+.tf.t{background:var(--good-bg);color:var(--good)}
+.tf.f{background:var(--bad-bg);color:var(--bad)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.speed{display:flex;align-items:center;gap:6px;font-size:.9rem;margin-left:auto;color:var(--ink-2)}
+.speed input{accent-color:var(--accent);width:100px}
+.stepcount{font-size:.85rem;color:var(--ink-2);min-width:7.5em;text-align:right;font-family:var(--mono)}
+
+/* Learn */
+.learn{display:grid;gap:22px}
+.lesson-steps{display:flex;flex-wrap:wrap;gap:6px}
+.lesson-steps button{display:flex;align-items:center;gap:8px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);border-radius:999px;padding:4px 13px 4px 4px;font-weight:600;font-size:.9rem;cursor:pointer}
+.lesson-steps button span{width:25px;height:25px;border-radius:50%;border:1px solid var(--rule);display:grid;place-items:center;font-size:.8rem;font-family:var(--mono)}
+.lesson-steps button[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 12px var(--glow)}
+.lesson-steps button[aria-current="step"] span{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lesson{display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:1000px){.lesson{grid-template-columns:minmax(280px,.78fr) minmax(0,1.6fr);align-items:start}}
+.kicker{color:var(--accent);font-weight:600;margin:0;font-family:var(--mono);font-size:.88rem}
+.lesson-text h2{font-family:var(--display);font-weight:600;font-size:2.15rem;line-height:1.1;margin:.2em 0 .45em;letter-spacing:.03em}
+.lesson-text p,.lesson-text li{max-width:58ch}
+.tip{border:1px solid var(--rule);border-left:3px solid var(--robot);padding:8px 12px;background:var(--panel);border-radius:8px}
+.lesson-nav{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+
+/* Review */
+.qnav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.qnav button{min-width:2.8em;padding:5px 8px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);color:var(--ink);font:600 .88rem var(--mono);cursor:pointer}
+.qnav button.ok{border-color:var(--good);color:var(--good)}
+.qnav button.no{border-color:var(--bad);color:var(--bad)}
+.qnav button[aria-current="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);box-shadow:0 0 12px var(--glow)}
+.q{background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--rule);border-radius:16px;padding:clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:16px}
+.qhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+.qhead h2{font-family:var(--display);font-weight:600;font-size:1.6rem;margin:0;letter-spacing:.03em}
+.qkind{font-size:.85rem;padding:2px 12px;border-radius:999px;border:1px solid var(--robot);color:var(--robot);font-weight:600}
+@media (prefers-color-scheme: light){.qkind{color:#8A5A00;border-color:#C98A00}}
+.prompt{font-size:1.1rem;margin:0;max-width:72ch}
+.note{margin:-6px 0 0;font-size:.95rem;color:var(--ink-2);max-width:72ch}
+.figure{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.fig-grid{margin:0;width:min(290px,100%)}
+.fig-grid figcaption{text-align:center;font-weight:600;font-size:.9rem;margin-top:4px;font-family:var(--mono);color:var(--ink-2)}
+.fig-code{flex:1 1 260px;max-width:460px;padding:10px;border:1px solid var(--rule);border-radius:10px;background:var(--panel-2)}
+.choices{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.choices.states{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
+.choice{text-align:left;font:inherit;color:inherit;background:var(--panel-2);border:1px solid var(--rule);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,box-shadow .15s}
+.choice:hover:not([aria-disabled="true"]){border-color:var(--line)}
+.choice[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent),0 0 16px var(--glow)}
+.choice[aria-disabled="true"]{cursor:default}
+.choice.is-correct{border-color:var(--good);background:var(--good-bg);box-shadow:inset 0 0 0 2px var(--good)}
+.choice.is-wrong{border-color:var(--bad);background:var(--bad-bg);box-shadow:inset 0 0 0 2px var(--bad)}
+.choice .letter{font:600 1.05rem var(--display);letter-spacing:.04em}
+.choice .code{overflow-x:auto;max-width:100%}
+.choice .code-text{font-size:13.5px}
+.choice .code-blocks{font-size:12px}
+.choice .mini{max-width:150px;margin:0 auto;width:100%}
+.choice .cap{font-size:.88rem;text-align:center}
+.verdict{font-weight:700;font-size:.9rem}
+.verdict:empty{display:none}
+.is-correct .verdict{color:var(--good)}
+.is-wrong .verdict{color:var(--bad)}
+.qactions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hint{color:var(--ink-2);font-size:.92rem}
+.feedback:empty{display:none}
+.feedback p{margin:0 0 6px;max-width:75ch}
+.fb-head{font:600 1.35rem var(--display);letter-spacing:.03em}
+.fb-head.ok{color:var(--good)}
+.fb-head.no{color:var(--bad)}
+.outcomes{margin:4px 0 10px;padding-left:1.2em}
+.outcomes li{margin:2px 0}
+.qfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--rule);padding-top:14px}
+.rhead{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-bottom:16px}
+.rhead p{margin:0;max-width:60ch;color:var(--ink-2)}
+
+@media (prefers-reduced-motion: reduce){.robot{transition:none!important}.b,.choice{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line class="hatch-line" x1="0" y1="0" x2="0" y2="9" stroke-width="3"/>
+    </pattern>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19" fill="none" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 3"/><ellipse cx="22" cy="22" rx="20" ry="7" fill="none" stroke="var(--line)" stroke-width="1" opacity=".6" transform="rotate(-25 22 22)"/><polygon points="22,32 26,38 18,38" fill="var(--flame)" opacity=".85"/><polygon points="22,8 32,32 12,32" fill="var(--robot)" stroke="var(--robot-edge)" stroke-width="2" stroke-linejoin="round"/></svg>
+    <div><h1>Robot Trace</h1><p>Mission training for the AP CSP robot questions</p></div>
+  </div>
+  <div class="seg modes" role="group" aria-label="Mode">
+    <button data-mode="learn" aria-pressed="true">Learn</button>
+    <button data-mode="review" aria-pressed="false">Review</button>
+    <button data-mode="random" aria-pressed="false">Random practice</button>
+  </div>
+  <div class="codestyle" role="group" aria-label="Code style">
+    <span>Show code as</span>
+    <div class="seg"><button data-style="text" aria-pressed="true">Text</button><button data-style="blocks" aria-pressed="false">Blocks</button></div>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main id="app"></main>
+
+<footer>Learning activity created by B.Estes assisted with AI, used with permission.</footer>
+
+<script id="engine">
+/* ================= ENGINE (no DOM) ================= */
+const DIRS=['up','right','down','left'];
+const DR=[-1,0,1,0], DC=[0,1,0,-1];
+const REL={forward:0,right:1,backward:2,left:3};
+
+function makeGrid(map){
+  const rows=map.length, cols=map[0].length, blocked=new Set(); let goal=null,start=null;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const ch=map[r][c];
+    if(ch==='#') blocked.add(r+','+c);
+    else if(ch==='G') goal={r,c};
+    else { const d='^>v<'.indexOf(ch); if(d>=0) start={r,c,dir:d}; }
+  }
+  return {rows,cols,blocked,goal,start};
+}
+function inGrid(g,r,c){return r>=0&&c>=0&&r<g.rows&&c<g.cols;}
+function isOpen(g,r,c){return inGrid(g,r,c)&&!g.blocked.has(r+','+c);}
+
+/* Program builders */
+const M=()=>({t:'move'}), RL=()=>({t:'left'}), RR=()=>({t:'right'});
+const REP=(n,...body)=>({t:'repeat',n,body});
+const UNTIL=(cond,...body)=>({t:'until',cond,body});
+const IF=(cond,then,els)=>({t:'if',cond,then,else:els||null});
+const CAN=d=>({t:'can',dir:d}), NOT=c=>({t:'not',c}), GOAL=()=>({t:'goal'});
+
+function clone(x){return JSON.parse(JSON.stringify(x));}
+function walkStmts(list,fn){for(const s of list){fn(s); if(s.body) walkStmts(s.body,fn); if(s.then) walkStmts(s.then,fn); if(s.else) walkStmts(s.else,fn);}}
+function prepare(prog){const p=clone(prog); let n=0; walkStmts(p,s=>{s.id=++n;}); return p;}
+
+function condText(c){
+  switch(c.t){
+    case 'can': return `CAN_MOVE(${c.dir})`;
+    case 'goal': return 'GoalReached()';
+    case 'not': return `NOT ${condText(c.c)}`;
+    case 'and': return `${condText(c.a)} AND ${condText(c.b)}`;
+    case 'or': return `${condText(c.a)} OR ${condText(c.b)}`;
+  }
+  return '';
+}
+function usesGoal(prog){let u=false; const chk=c=>{if(!c)return; if(c.t==='goal')u=true; chk(c.c); chk(c.a); chk(c.b);}; walkStmts(prog,s=>chk(s.cond)); return u;}
+
+function codeLines(prog){
+  const out=[], ind=d=>'   '.repeat(d);
+  const block=(list,d)=>{out.push({text:ind(d)+'{',id:null}); walk(list,d+1); out.push({text:ind(d)+'}',id:null});};
+  function walk(list,d){
+    for(const s of list){
+      switch(s.t){
+        case 'move': out.push({text:ind(d)+'MOVE_FORWARD()',id:s.id}); break;
+        case 'left': out.push({text:ind(d)+'ROTATE_LEFT()',id:s.id}); break;
+        case 'right': out.push({text:ind(d)+'ROTATE_RIGHT()',id:s.id}); break;
+        case 'repeat': out.push({text:ind(d)+`REPEAT ${s.n} TIMES`,id:s.id}); block(s.body,d); break;
+        case 'until': out.push({text:ind(d)+`REPEAT UNTIL (${condText(s.cond)})`,id:s.id}); block(s.body,d); break;
+        case 'if': out.push({text:ind(d)+`IF (${condText(s.cond)})`,id:s.id}); block(s.then,d);
+          if(s.else){out.push({text:ind(d)+'ELSE',id:null}); block(s.else,d);} break;
+      }
+    }
+  }
+  walk(prog,0); return out;
+}
+const progText=p=>codeLines(p).map(l=>l.text).join('\n');
+
+/* Interpreter: produces a full step-by-step trace */
+function runProgram(prog,g,opts={}){
+  const MAX=400, st={r:g.start.r,c:g.start.c,dir:g.start.dir};
+  const steps=[], visited=[[st.r,st.c]], loops=[];
+  const at=()=>`row ${st.r+1}, column ${st.c+1}`;
+  const push=(id,kind,msg)=>steps.push({id,kind,msg,r:st.r,c:st.c,dir:st.dir,visited:visited.length,loops:loops.map(f=>f.label)});
+  function Halt(k){this.k=k;}
+  const tick=()=>{if(steps.length>MAX) throw new Halt('timeout');};
+  const canMove=rel=>{const d=(st.dir+REL[rel])%4; return isOpen(g,st.r+DR[d],st.c+DC[d]);};
+  const evalC=c=>{switch(c.t){
+    case 'can': return canMove(c.dir);
+    case 'goal': return !!g.goal&&st.r===g.goal.r&&st.c===g.goal.c;
+    case 'not': return !evalC(c.c);
+    case 'and': return evalC(c.a)&&evalC(c.b);
+    case 'or': return evalC(c.a)||evalC(c.b);
+  } return false;};
+  function tryMove(id,label){
+    const nr=st.r+DR[st.dir], nc=st.c+DC[st.dir];
+    if(isOpen(g,nr,nc)){st.r=nr; st.c=nc; visited.push([nr,nc]); push(id,'move',`${label}: moved to ${at()}.`); return;}
+    const what=inGrid(g,nr,nc)?'a blocked square':'off the grid';
+    if(opts.skipBumps){push(id,'stay',`${label}: the square ahead is ${what}. The mistake keeps the program going anyway.`); return;}
+    push(id,'bump',`${label}: the square ahead is ${what}, so the robot stays at ${at()} and the program ends.`);
+    throw new Halt('crashed');
+  }
+  function exec(list){for(const s of list) one(s);}
+  function one(s){
+    tick();
+    switch(s.t){
+      case 'move': tryMove(s.id,'MOVE_FORWARD()'); break;
+      case 'left': case 'right': {
+        let left=s.t==='left'; const name=left?'ROTATE_LEFT()':'ROTATE_RIGHT()';
+        if(opts.swapLR) left=!left;
+        st.dir=(st.dir+(left?3:1))%4;
+        push(s.id,'turn',`${name}: ${opts.swapLR?'turned the wrong way (this is the mistake) and now faces':'turned in place and now faces'} ${DIRS[st.dir]}.`);
+        if(opts.rotateMoves){tick(); tryMove(s.id,'The mistake also moves the robot forward');}
+        break;
+      }
+      case 'repeat': {
+        const f={label:''}; loops.push(f);
+        for(let i=1;i<=s.n;i++){f.label=`REPEAT ${s.n} TIMES: iteration ${i} of ${s.n}`; push(s.id,'loop',`Start iteration ${i} of ${s.n}.`); exec(s.body); tick();}
+        loops.pop(); break;
+      }
+      case 'until': {
+        const f={label:''}; loops.push(f); let pass=0;
+        for(;;){
+          tick(); const v=evalC(s.cond);
+          f.label=`REPEAT UNTIL: check ${pass+1}`;
+          push(s.id,'check',`Check ${condText(s.cond)} → ${v}. ${v?'The condition is true, so the loop stops.':'The condition is false, so the loop body runs.'}`);
+          if(v) break; pass++; f.label=`REPEAT UNTIL: pass ${pass}`; exec(s.body);
+        }
+        loops.pop(); break;
+      }
+      case 'if': {
+        const v=evalC(s.cond);
+        push(s.id,'check',`Check ${condText(s.cond)} → ${v}. ${v?'Run the IF block.':(s.else?'Run the ELSE block.':'Skip the IF block.')}`);
+        if(v) exec(s.then); else if(s.else) exec(s.else);
+        break;
+      }
+    }
+  }
+  push(null,'start',`Start: the robot is at ${at()}, facing ${DIRS[st.dir]}.`);
+  let status='done';
+  try{exec(prog);}catch(e){if(e instanceof Halt) status=e.k; else throw e;}
+  const final={r:st.r,c:st.c,dir:st.dir};
+  const atGoal=!!g.goal&&final.r===g.goal.r&&final.c===g.goal.c;
+  if(status==='done') push(null,'end', g.goal?(atGoal?'Program finished. The robot is in the goal square.':'Program finished, but the robot is not in the goal square.'):`Program finished. The robot is at ${at()}, facing ${DIRS[st.dir]}.`);
+  if(status==='timeout') push(null,'timeout','This program never finishes, so the trace stops here.');
+  return {steps,visited,status,final,success:status==='done'&&atGoal};
+}
+
+const posText=s=>`row ${s.r+1}, column ${s.c+1}`;
+const stateText=s=>`Row ${s.r+1}, column ${s.c+1}, facing ${DIRS[s.dir]}`;
+function describeOutcome(res){
+  if(res.status==='timeout') return 'Never finishes. The loop keeps running forever.';
+  if(res.status==='crashed') return `Gets stuck at ${posText(res.final)} because the next square is blocked or off the grid, so the program ends there.`;
+  if(res.success) return `Reaches the goal at ${posText(res.final)}.`;
+  return `Finishes at ${posText(res.final)}, facing ${DIRS[res.final.dir]}, which is not the goal.`;
+}
+
+/* Mutations that model common student mistakes */
+function adjustRepeat(prog,delta,which=0){
+  const p=clone(prog); const reps=[]; walkStmts(p,s=>{if(s.t==='repeat') reps.push(s);});
+  if(which>=reps.length) return null; reps[which].n+=delta; if(reps[which].n<1) return null; return p;
+}
+function swapTurns(prog){const p=clone(prog); walkStmts(p,s=>{if(s.t==='left') s.t='right'; else if(s.t==='right') s.t='left';}); return p;}
+function dropFirstTurn(prog){
+  const p=clone(prog); let done=false;
+  const rm=list=>{for(let i=0;i<list.length&&!done;i++){const s=list[i]; if(s.t==='left'||s.t==='right'){list.splice(i,1); done=true; return;} if(s.body) rm(s.body);}};
+  rm(p); return done?p:null;
+}
+
+/* Random helpers */
+function seeded(str){let h=1779033703^str.length; for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19;}
+  return function(){h=Math.imul(h^h>>>16,2246822507); h=Math.imul(h^h>>>13,3266489909); h^=h>>>16; return (h>>>0)/4294967296;};}
+function shuffle(a,rand){for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
+
+/* End-state choices: correct state + states produced by simulated mistakes */
+function endStateChoices(q,rand){
+  const g=q.grids[0], prog=q.progP, correct=q.base.final;
+  const key=s=>`${s.r},${s.c},${s.dir}`; const seen=new Set([key(correct)]);
+  const items=[{state:correct,correct:true}];
+  const add=(state,why,run)=>{ if(items.length>=4) return; if(!isOpen(g,state.r,state.c)) return; const k=key(state); if(seen.has(k)) return; seen.add(k); items.push({state,correct:false,why,run}); };
+  (q.traps||[]).forEach(t=>add({r:t.r,c:t.c,dir:t.dir},t.why,null));
+  const muts=[
+    {why:'mixing up ROTATE_LEFT and ROTATE_RIGHT',prog,opts:{swapLR:true}},
+    {why:'treating each rotation as if it also moved the robot forward',prog,opts:{rotateMoves:true}},
+    {why:'forgetting that the program ends when the robot cannot move',prog,opts:{skipBumps:true}},
+    {why:'running a REPEAT loop one extra time',prog:adjustRepeat(prog,1),opts:{}},
+    {why:'running a REPEAT loop one time too few',prog:adjustRepeat(prog,-1),opts:{}},
+  ];
+  for(const m of muts){ if(!m.prog) continue; const r=runProgram(m.prog,g,m.opts); if(r.status==='timeout') continue; add(r.final,m.why,{prog:m.prog,opts:m.opts}); }
+  const fill=[];
+  [2,1,3].forEach(d=>fill.push({r:correct.r,c:correct.c,dir:(correct.dir+d)%4}));
+  for(let d=0;d<4;d++) fill.push({r:correct.r+DR[d],c:correct.c+DC[d],dir:correct.dir});
+  for(let d=0;d<4;d++) fill.push({r:g.start.r+DR[d],c:g.start.c+DC[d],dir:g.start.dir});
+  shuffle(fill,rand).forEach(s=>add(s,null,null));
+  return shuffle(items,rand);
+}
+
+function prepareQuestion(q,rand){
+  if(q.type==='end'||q.type==='term'){
+    q.progP=prepare(q.prog); q.base=runProgram(q.progP,q.grids[0]); q.items=endStateChoices(q,rand); q.need=1;
+  } else {
+    q.items=shuffle(q.choices.map(p=>{const prog=prepare(p); const results=q.grids.map(g=>runProgram(prog,g)); return {prog,results,correct:results.every(r=>r.success)};}),rand);
+    q.need=q.type==='two'?2:1;
+  }
+  q.goalFn=(q.type==='end'||q.type==='term')?usesGoal(q.prog):q.choices.some(usesGoal);
+  return q;
+}
+
+/* ================= QUESTION BANK ================= */
+const ALL_QUESTIONS=[
+ {id:'q1',type:'goal',maps:[".....",".....","..G..",".....","..^.."],
+  choices:[[REP(2,M())],[REP(3,M())],[RL(),REP(2,M())],[M()]]},
+ {id:'q2',type:'end',maps:[".....",".v...",".....",".....","....."],
+  prog:[M(),M(),RL(),M()]},
+ {id:'q3',type:'goal',maps:[".....","G....",".....",".....","...^."],
+  choices:[[REP(3,M()),RL(),REP(3,M())],[REP(3,M()),RR(),REP(3,M())],[REP(3,M()),RL(),REP(2,M())],[RL(),REP(3,M()),RL(),REP(3,M())]]},
+ {id:'q4',type:'end',maps:[".....",".....",".....",".....","^...."],
+  prog:[REP(4,M(),RR())]},
+ {id:'q5',type:'end',maps:[".....",".....","....<",".....","....."],
+  prog:[M(),M(),RR(),M()]},
+ {id:'q6',type:'term',maps:[".....",".....",">..#.",".....","....."],
+  prog:[REP(4,M()),RL(),M()]},
+ {id:'q7',type:'term',maps:[".....",".^...",".....",".....","....."],
+  prog:[RL(),REP(3,M()),RR(),M()]},
+ {id:'q8',type:'end',maps:[".....",".....",".....",".....","^...."],
+  prog:[REP(2,REP(2,M()),RR())]},
+ {id:'q9',type:'two',maps:["....G",".....",".....",".....",">...."],
+  choices:[[REP(4,M()),RL(),REP(4,M())],[RL(),REP(4,M()),RR(),REP(4,M())],[REP(4,M()),RR(),REP(4,M())],[RR(),REP(4,M()),RL(),REP(4,M())]]},
+ {id:'q10',type:'goal',maps:[".G...",".....","#....",".....",".^..."],
+  choices:[[UNTIL(NOT(CAN('forward')),M())],[UNTIL(CAN('forward'),M())],[REP(3,M())],[UNTIL(NOT(CAN('left')),M())]]},
+ {id:'q11',type:'end',maps:["....v",".....",".....",".....","....."],
+  prog:[REP(2,M()),RR(),REP(3,M()),RR(),M()]},
+ {id:'q12',type:'end',maps:[".....",".....",".....",".....",">.#.."],
+  prog:[REP(4,IF(CAN('forward'),[M()],[RL()]))]},
+ {id:'q13',type:'term',maps:[">....",".....","..#..",".....","....."],
+  prog:[REP(2,M(),M(),RR())]},
+ {id:'q14',type:'end',maps:[".....","..#..",".#^..",".....","....."],
+  prog:[UNTIL(CAN('forward'),RL()),M()]},
+ {id:'q15',type:'two',maps:["#....","...G.",".....",".....",">..#."],
+  choices:[[REP(3,M(),RL(),M(),RR())],[REP(3,RL(),M(),RR(),M())],[REP(3,M(),RR(),M(),RL())],[REP(2,M(),RL(),M(),RR())]]},
+ {id:'q16',type:'two',maps:[".....",".....",".....",">..G#","....."],
+  choices:[[REP(3,M())],[UNTIL(NOT(CAN('forward')),M())],[UNTIL(CAN('forward'),M())],[REP(3,RL(),M(),RR())]]},
+ {id:'q17',type:'goal',maps:[".....","....G","..#..","..#..",".^#.."],
+  choices:[[UNTIL(CAN('right'),M()),RR(),UNTIL(NOT(CAN('forward')),M())],[UNTIL(CAN('right'),M()),RL(),UNTIL(NOT(CAN('forward')),M())],[UNTIL(NOT(CAN('right')),M()),RR(),UNTIL(NOT(CAN('forward')),M())],[REP(3,M()),RR(),REP(2,M())]]},
+ {id:'q18',type:'goal',maps:[".....","#....","..G..",".....","^...."],
+  choices:[[REP(5,IF(CAN('forward'),[M()],[RR()]))],[REP(4,IF(CAN('forward'),[M()],[RR()]))],[REP(5,IF(CAN('forward'),[M()],[RL()]))],[REP(5,M(),IF(NOT(CAN('forward')),[RR()]))]]},
+ {id:'q19',type:'term',maps:[".....",".....",".....",".....","G.#.<"],
+  prog:[UNTIL(GOAL(),M())],
+  traps:[{r:4,c:0,dir:3,why:'forgetting that the program ends for good when the robot cannot move'}]},
+ {id:'q20',type:'both',maps:[["G....",".....",".....",".....","^...."],[".....",".....","#G..<",".....","....."]],
+  choices:[[UNTIL(NOT(CAN('forward')),M())],[REP(3,M())],[UNTIL(CAN('forward'),M())],[UNTIL(NOT(CAN('left')),M())]]},
+ {id:'q21',type:'both',maps:[[">...#","###.#","###.#","###G#","#####"],[">.#..","#.###","#...#","###.#","###G#"]],
+  choices:[[UNTIL(GOAL(),IF(CAN('forward'),[M()],[RR()]))],[UNTIL(GOAL(),IF(CAN('forward'),[M()],[IF(CAN('right'),[RR()],[RL()])]))],[UNTIL(GOAL(),IF(CAN('forward'),[M()],[RL()]))],[REP(3,M()),RR(),REP(3,M())]]},
+];
+/* The review uses these 10 questions, in this order. Swap in any id above to change the set. */
+const REVIEW_IDS=['q1','q2','q3','q4','q6','q9','q10','q14','q18','q21'];
+const BANK=REVIEW_IDS.map(id=>ALL_QUESTIONS.find(q=>q.id===id));
+BANK.forEach(q=>{
+  const maps=Array.isArray(q.maps[0])?q.maps:[q.maps];
+  q.grids=maps.map(makeGrid);
+  prepareQuestion(q,seeded(q.id));
+});
+
+/* ================= RANDOM QUESTIONS ================= */
+function genRandom(rand=Math.random){
+  const ri=n=>Math.floor(rand()*n), turn=()=>rand()<.5?RL():RR();
+  for(let a=0;a<600;a++){
+    const rows=5, cols=5+ri(2);
+    const g={rows,cols,blocked:new Set(),goal:null,start:{r:ri(rows),c:ri(cols),dir:ri(4)}};
+    const flavor=['seg','seg','stair','ifloop'][ri(4)];
+    let prog=[];
+    if(flavor==='seg'){
+      const n=2+ri(2);
+      for(let i=0;i<n;i++){ if(i>0||rand()<.35) prog.push(turn()); const k=1+ri(3); prog.push(k===1?M():REP(k,M())); }
+    } else if(flavor==='stair'){
+      const lf=rand()<.5; prog=[REP(2+ri(2),M(),lf?RL():RR(),M(),lf?RR():RL())];
+    } else {
+      const k=3+ri(3); let guard=0;
+      while(g.blocked.size<k&&guard++<50){const r=ri(rows),c=ri(cols); if(r!==g.start.r||c!==g.start.c) g.blocked.add(r+','+c);}
+      prog=[REP(4+ri(3),IF(CAN('forward'),[M()],[turn()]))];
+    }
+    prog=prepare(prog);
+    let res=runProgram(prog,g);
+    if(res.status!=='done') continue;
+    const path=new Set(res.visited.map(([r,c])=>r+','+c));
+    if(path.size<4) continue;
+    if(res.final.r===g.start.r&&res.final.c===g.start.c) continue;
+    if(flavor!=='ifloop'){
+      const want=2+ri(3); let guard=0;
+      while(guard++<60&&g.blocked.size<want){const r=ri(rows),c=ri(cols),k=r+','+c; if(!path.has(k)) g.blocked.add(k);}
+    }
+    const type=flavor==='ifloop'?'end':(rand()<.55?'goal':'end');
+    let q;
+    if(type==='goal'){
+      g.goal={r:res.final.r,c:res.final.c};
+      if(!runProgram(prog,g).success) continue;
+      const base=progText(prog), seenT=new Set([base]), wrong=[];
+      const variants=shuffle([swapTurns(prog),adjustRepeat(prog,1),adjustRepeat(prog,-1),adjustRepeat(prog,1,1),adjustRepeat(prog,-1,1),dropFirstTurn(prog),[...clone(prog),M()]],rand);
+      for(const v of variants){ if(!v) continue; const t=progText(v); if(seenT.has(t)) continue; if(runProgram(v,g).success) continue; seenT.add(t); wrong.push(v); }
+      if(wrong.length<3) continue;
+      q={id:'rnd',type:'goal',grids:[g],choices:[prog,...wrong.slice(0,3)]};
+    } else {
+      let qtype='end';
+      if(flavor!=='ifloop'&&rand()<.4){
+        const cells=res.visited.slice(2).map(([r,c])=>r+','+c).filter(k=>k!==g.start.r+','+g.start.c);
+        if(cells.length){ g.blocked.add(cells[ri(cells.length)]); res=runProgram(prog,g); if(res.status!=='crashed') continue; qtype='term'; }
+      }
+      q={id:'rnd',type:qtype,grids:[g],prog};
+    }
+    prepareQuestion(q,rand);
+    if(q.items.length!==4) continue;
+    if(q.items.filter(i=>i.correct).length!==1) continue;
+    return q;
+  }
+  return null;
+}
+
+/* ================= LESSONS ================= */
+const LESSONS=[
+ {title:'Meet the robot',
+  html:`<p>The robot is the yellow triangle. Its point shows which way it is facing.</p>
+  <p>Striped squares are blocked. The gray square marked Goal is where the robot is usually trying to go.</p>
+  <p><code>MOVE_FORWARD()</code> moves the robot one square in the direction it is facing.</p>
+  <p class="tip">On the exam the grid has no row or column numbers. They are added here so you can follow the trace.</p>
+  <p>Press Play, or use Step forward to go one line at a time.</p>`,
+  map:[".....",".....",">...G",".....","....."], prog:[M(),M(),M(),M()]},
+ {title:'Turning in place',
+  html:`<p><code>ROTATE_LEFT()</code> turns the robot 90 degrees counterclockwise. <code>ROTATE_RIGHT()</code> turns it 90 degrees clockwise.</p>
+  <p>Turning never changes the robot’s square. Only <code>MOVE_FORWARD()</code> moves it.</p>
+  <p class="tip">A common mistake is counting a rotation as a move. Watch the robot stay in place on each turn.</p>`,
+  map:[".....",".>...",".....",".....","....."], prog:[M(),RR(),M(),RR(),M()]},
+ {title:'Left and right belong to the robot',
+  html:`<p>Left and right are from the robot’s point of view, not yours.</p>
+  <p>When the robot faces down, its left is your right. When it faces left, its right is up the screen.</p>
+  <p class="tip">Imagine you are sitting in the robot, like a pilot in a cockpit. Turn your head the way the triangle points, then decide which way is left.</p>
+  <p>Here the robot faces down and runs <code>ROTATE_LEFT()</code>. Predict where it goes before you press Play.</p>`,
+  map:[".....","..v..",".....",".....","....."], prog:[RL(),M(),M()]},
+ {title:'Checking first with CAN_MOVE',
+  html:`<p><code>CAN_MOVE(direction)</code> asks a yes or no question: is the square in that direction open and on the grid?</p>
+  <p>The direction can be <code>forward</code>, <code>backward</code>, <code>left</code>, or <code>right</code>, all from the robot’s point of view.</p>
+  <p><code>CAN_MOVE</code> only checks. It never moves the robot. It is usually used inside an <code>IF</code> or a <code>REPEAT UNTIL</code>.</p>`,
+  map:[".....",".#...",".^...",".....","....."], prog:[IF(CAN('forward'),[M()],[RR()]),M()]},
+ {title:'Loops',
+  html:`<p><code>REPEAT n TIMES</code> runs the code inside the braces exactly n times.</p>
+  <p><code>REPEAT UNTIL (condition)</code> checks the condition first. If it is false, the code inside runs, then the condition is checked again. The loop stops as soon as the condition is true.</p>
+  <p class="tip">If the condition is already true at the start, the code inside never runs at all.</p>
+  <p>Watch the status box to see the iteration count and each true or false check.</p>`,
+  map:[".....","..#..",".....",".....",">...."], prog:[REP(2,M()),RL(),UNTIL(NOT(CAN('forward')),M())]},
+ {title:'Walls end the program',
+  html:`<p>If the robot is told to move into a blocked square or off the grid, it stays where it is and the whole program ends. No more lines run.</p>
+  <p>This is the most common trap on the exam. In this example, <code>ROTATE_LEFT()</code> never runs.</p>
+  <p class="tip">In this app, a code segment works only when it finishes with the robot in the goal square without hitting a wall.</p>`,
+  map:[".....",".....",">..#.",".....","....."], prog:[REP(4,M()),RL(),M()]},
+];
+LESSONS.forEach(L=>{L.grid=makeGrid(L.map); L.progP=prepare(L.prog);});
+</script>
+
+<script>
+/* ================= UI ================= */
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const LET='ABCD';
+const reduceMotion=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S=56, PAD=22;
+
+/* ---- code rendering ---- */
+let codeStyle='text', codeSites=[];
+function textHTML(prog){
+  return '<div class="code-text">'+codeLines(prog).map((l,i)=>`<div class="ln"${l.id?` data-id="${l.id}"`:''}><span class="gut">${i+1}</span><span class="src">${esc(l.text)||' '}</span></div>`).join('')+'</div>';
+}
+function condBlk(c){
+  switch(c.t){
+    case 'can': return `<span class="pill">CAN_MOVE ${c.dir}</span>`;
+    case 'goal': return `<span class="pill">GoalReached</span>`;
+    case 'not': return `<span class="pill">NOT ${condBlk(c.c)}</span>`;
+    case 'and': return `<span class="pill">${condBlk(c.a)} AND ${condBlk(c.b)}</span>`;
+    case 'or': return `<span class="pill">${condBlk(c.a)} OR ${condBlk(c.b)}</span>`;
+  } return '';
+}
+function blocksHTML(prog){
+  const walk=list=>list.map(s=>{
+    switch(s.t){
+      case 'move': return `<div class="blk cmd" data-id="${s.id}">MOVE_FORWARD</div>`;
+      case 'left': return `<div class="blk cmd" data-id="${s.id}">ROTATE_LEFT</div>`;
+      case 'right': return `<div class="blk cmd" data-id="${s.id}">ROTATE_RIGHT</div>`;
+      case 'repeat': return `<div class="blk ctrl"><div class="bh" data-id="${s.id}">REPEAT <span class="pill">${s.n}</span> TIMES</div><div class="bb">${walk(s.body)}</div></div>`;
+      case 'until': return `<div class="blk ctrl"><div class="bh" data-id="${s.id}">REPEAT UNTIL ${condBlk(s.cond)}</div><div class="bb">${walk(s.body)}</div></div>`;
+      case 'if': return `<div class="blk ctrl"><div class="bh" data-id="${s.id}">IF ${condBlk(s.cond)}</div><div class="bb">${walk(s.then)}</div>${s.else?`<div class="bh">ELSE</div><div class="bb">${walk(s.else)}</div>`:''}</div>`;
+    } return '';
+  }).join('');
+  return `<div class="code-blocks">${walk(prog)}</div>`;
+}
+function paintCode(el,prog){el.innerHTML=codeStyle==='text'?textHTML(prog):blocksHTML(prog);}
+function renderCode(el,prog,after){const site={el,prog,after}; codeSites.push(site); paintCode(el,prog); return site;}
+function refreshCode(){codeSites=codeSites.filter(s=>s.el.isConnected); codeSites.forEach(s=>{paintCode(s.el,s.prog); if(s.after) s.after();});}
+
+/* ---- grid rendering ---- */
+function gridLabel(g,robot){
+  let t=`Grid with ${g.rows} rows and ${g.cols} columns.`;
+  if(robot) t+=` Robot at row ${robot.r+1}, column ${robot.c+1}, facing ${DIRS[robot.dir]}.`;
+  if(g.goal) t+=` Goal at row ${g.goal.r+1}, column ${g.goal.c+1}.`;
+  if(g.blocked.size) t+=` Blocked squares: ${[...g.blocked].map(k=>{const [r,c]=k.split(',').map(Number); return `row ${r+1} column ${c+1}`;}).join('; ')}.`;
+  return t;
+}
+function robotG(st){return `<g class="robot" style="transform:translate(${st.c*S+S/2}px,${st.r*S+S/2}px) rotate(${st.dir*90}deg)"><g class="ship"><polygon class="flame" points="-7,15 7,15 0,25"/><polygon class="bot" filter="url(#glow)" points="0,-19 16,14 -16,14"/></g></g>`;}
+function gridSVG(g,o={}){
+  const off=o.coords?PAD:0, W=g.cols*S+off+2, H=g.rows*S+off+2;
+  let s=`<svg class="grid ${o.cls||''}" viewBox="${-1} ${-1} ${W} ${H}" role="img" aria-label="${esc(gridLabel(g,o.robot))}">`;
+  if(o.coords){
+    for(let c=0;c<g.cols;c++) s+=`<text class="coord" x="${off+c*S+S/2}" y="${PAD-7}">${c+1}</text>`;
+    for(let r=0;r<g.rows;r++) s+=`<text class="coord" x="${PAD/2-1}" y="${off+r*S+S/2+4}">${r+1}</text>`;
+  }
+  s+=`<g transform="translate(${off},${off})">`;
+  for(let r=0;r<g.rows;r++) for(let c=0;c<g.cols;c++){
+    const x=c*S,y=r*S,k=r+','+c;
+    if(g.blocked.has(k)) s+=`<rect class="cell blocked" x="${x}" y="${y}" width="${S}" height="${S}"/><rect x="${x}" y="${y}" width="${S}" height="${S}" fill="url(#hatch)"/>`;
+    else if(g.goal&&g.goal.r===r&&g.goal.c===c) s+=`<rect class="cell goal" x="${x}" y="${y}" width="${S}" height="${S}"/><circle class="goal-ring" cx="${x+S/2}" cy="${y+S/2-4}" r="16"/><text class="goal-label" x="${x+S/2}" y="${y+S-6}">Goal</text>`;
+    else s+=`<rect class="cell" x="${x}" y="${y}" width="${S}" height="${S}"/>`;
+  }
+  s+=`<rect class="frame" x="0" y="0" width="${g.cols*S}" height="${g.rows*S}"/>`;
+  s+=`<g class="trail"></g>`;
+  if(o.robot) s+=robotG(o.robot);
+  s+=`</g></svg>`;
+  return s;
+}
+
+/* ---- player ---- */
+const DELAYS=[1600,1100,750,480,260];
+let players=[];
+function fmtMsg(m){return esc(m).replace(/→ (true|false)/g,(x,v)=>`→ <span class="tf ${v==='true'?'t':'f'}">${v}</span>`);}
+function createPlayer(host,runs,o={}){
+  runs.forEach(r=>{if(!r.res) r.res=runProgram(r.prog,r.grid,r.opts||{});});
+  let ri=0, si=0, timer=null, angle=0, speed=3, site=null;
+  host.innerHTML=`<div class="player">
+    ${runs.length>1?`<div class="runtabs" role="tablist" aria-label="Traces">${runs.map((r,i)=>`<button role="tab" data-i="${i}">${esc(r.label)}</button>`).join('')}</div>`:''}
+    <p class="run-note"></p>
+    <div class="pbody">
+      <div class="code-pane"><div class="code"></div></div>
+      <div><div class="gridwrap"></div><div class="status" aria-live="polite"></div></div>
+    </div>
+    <div class="controls">
+      <button class="b" data-a="reset">Reset</button>
+      <button class="b" data-a="back">Step back</button>
+      <button class="b primary" data-a="play">Play</button>
+      <button class="b" data-a="fwd">Step forward</button>
+      <label class="speed">Speed <input type="range" min="1" max="5" value="3"></label>
+      <span class="stepcount"></span>
+    </div></div>`;
+  const P=$('.player',host), codeEl=$('.code',P), pane=$('.code-pane',P), gw=$('.gridwrap',P), stEl=$('.status',P), cnt=$('.stepcount',P), note=$('.run-note',P);
+  const btn=a=>$(`[data-a="${a}"]`,P);
+  const last=()=>runs[ri].res.steps.length-1;
+
+  function highlight(){
+    const s=runs[ri].res.steps[si];
+    $$('.hl,.hl-bad',codeEl).forEach(e=>e.classList.remove('hl','hl-bad'));
+    if(s.id==null) return;
+    const el=$(`[data-id="${s.id}"]`,codeEl); if(!el) return;
+    el.classList.add(s.kind==='bump'?'hl-bad':'hl');
+    let y=0,n=el; while(n&&n!==pane){y+=n.offsetTop; n=n.offsetParent;}
+    const h=el.offsetHeight;
+    if(y<pane.scrollTop) pane.scrollTop=y-8;
+    else if(y+h>pane.scrollTop+pane.clientHeight) pane.scrollTop=y+h-pane.clientHeight+8;
+  }
+  function show(anim){
+    const r=runs[ri], s=r.res.steps[si], robot=$('.robot',gw);
+    const target=s.dir*90; const d=((target-angle)%360+540)%360-180; angle+=d;
+    robot.style.transitionDuration=(anim&&!reduceMotion)?Math.min(DELAYS[speed-1]*.6,420)+'ms':'0ms';
+    robot.style.transform=`translate(${s.c*S+S/2}px,${s.r*S+S/2}px) rotate(${angle}deg)`;
+    const seen=new Set(); let h='';
+    r.res.visited.slice(0,s.visited).forEach(([rr,cc])=>{const k=rr+','+cc; if(seen.has(k)) return; seen.add(k); h+=`<circle class="crumb" cx="${cc*S+S/2}" cy="${rr*S+S/2}" r="6"/>`;});
+    $('.trail',gw).innerHTML=h;
+    highlight();
+    let cls='status';
+    if(s.kind==='bump'||s.kind==='timeout'||(s.kind==='end'&&r.grid.goal&&!r.res.success)) cls+=' bad';
+    if(s.kind==='end'&&r.res.success) cls+=' good';
+    stEl.className=cls;
+    stEl.innerHTML=`<p class="smsg">${fmtMsg(s.msg)}</p><dl><div><dt>Robot</dt><dd>${stateText(s)}</dd></div>${s.loops.length?`<div><dt>Loops</dt><dd>${s.loops.map(esc).join('<br>')}</dd></div>`:''}</dl>`;
+    cnt.textContent=`Step ${si} of ${last()}`;
+    btn('back').disabled=si===0; btn('reset').disabled=si===0; btn('fwd').disabled=si>=last();
+    if(anim&&s.kind==='bump'&&!reduceMotion){
+      const bot=$('.ship',gw);
+      if(bot.animate) bot.animate([{transform:'translateY(0)'},{transform:'translateY(-13px)'},{transform:'translateY(0)'},{transform:'translateY(-5px)'},{transform:'translateY(0)'}],{duration:520,easing:'ease-out'});
+    }
+  }
+  function stop(){if(timer){clearTimeout(timer); timer=null;} btn('play').textContent='Play';}
+  function stepF(){if(si<last()){si++; show(true); return true;} return false;}
+  function tickF(){if(!stepF()||si>=last()){stop(); return;} timer=setTimeout(tickF,DELAYS[speed-1]);}
+  function play(){if(si>=last()){si=0; show(false);} btn('play').textContent='Pause'; timer=setTimeout(tickF,250);}
+  function load(i){
+    stop(); ri=i; si=0; const r=runs[ri];
+    if(site) codeSites=codeSites.filter(x=>x!==site);
+    site=renderCode(codeEl,r.prog,highlight);
+    gw.innerHTML=gridSVG(r.grid,{robot:r.grid.start,coords:true});
+    angle=r.grid.start.dir*90; pane.scrollTop=0;
+    $$('.runtabs button',P).forEach((b,j)=>b.setAttribute('aria-selected',String(j===ri)));
+    note.textContent=o.noNote?'':(r.note||(r.grid.goal?describeOutcome(r.res):''));
+    note.hidden=!note.textContent;
+    show(false);
+  }
+  $$('.runtabs button',P).forEach(b=>b.onclick=()=>load(+b.dataset.i));
+  btn('fwd').onclick=()=>{stop(); stepF();};
+  btn('back').onclick=()=>{stop(); if(si>0){si--; show(false);}};
+  btn('reset').onclick=()=>{stop(); si=0; show(false);};
+  btn('play').onclick=()=>timer?stop():play();
+  $('input[type=range]',P).oninput=e=>{speed=+e.target.value;};
+  load(o.start||0);
+  const api={stop,select:i=>load(i),play,el:P};
+  players.push(api);
+  if(o.autoplay) play();
+  return api;
+}
+
+/* ---- app state ---- */
+const app=$('#app');
+let mode='learn', lessonI=0;
+const review={i:0,answers:{}};
+const rnd={q:null,saved:null,tries:0,right:0};
+
+function stopAll(){players.forEach(p=>p.stop()); players=[]; codeSites=[];}
+function updateProgress(){
+  const vals=Object.values(review.answers), right=vals.filter(a=>a.ok).length;
+  $('#progress').innerHTML=`<span>Review: <b>${vals.length} of ${BANK.length}</b> answered, <b>${right}</b> correct</span>${rnd.tries?`<span>Random practice: <b>${rnd.right} of ${rnd.tries}</b> correct</span>`:''}`;
+}
+function setMode(m){
+  mode=m; stopAll();
+  $$('.modes button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
+  if(m==='learn') renderLearn(); else if(m==='review') renderReview(); else renderRandom();
+  updateProgress(); window.scrollTo(0,0);
+}
+$$('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$$('.codestyle button').forEach(b=>b.onclick=()=>{codeStyle=b.dataset.style; $$('.codestyle button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); refreshCode();});
+
+/* ---- learn ---- */
+function renderLearn(){
+  const L=LESSONS[lessonI];
+  app.innerHTML=`<section class="learn">
+    <nav class="lesson-steps" aria-label="Lessons">${LESSONS.map((l,i)=>`<button data-i="${i}" aria-current="${i===lessonI?'step':'false'}"><span>${i+1}</span>${esc(l.title)}</button>`).join('')}</nav>
+    <div class="lesson">
+      <div class="lesson-text"><p class="kicker">Lesson ${lessonI+1} of ${LESSONS.length}</p><h2>${esc(L.title)}</h2>${L.html}
+        <div class="lesson-nav"><button class="b" data-go="-1" ${lessonI===0?'disabled':''}>Previous lesson</button>${lessonI<LESSONS.length-1?`<button class="b primary" data-go="1">Next lesson</button>`:`<button class="b primary" data-start>Start the review</button>`}</div>
+      </div>
+      <div class="lesson-demo"></div>
+    </div></section>`;
+  createPlayer($('.lesson-demo'),[{label:'Demo',prog:L.progP,grid:L.grid}],{noNote:true});
+  $$('.lesson-steps button').forEach(b=>b.onclick=()=>{lessonI=+b.dataset.i; stopAll(); renderLearn();});
+  $$('[data-go]').forEach(b=>b.onclick=()=>{lessonI+=+b.dataset.go; stopAll(); renderLearn(); window.scrollTo(0,0);});
+  const sb=$('[data-start]'); if(sb) sb.onclick=()=>setMode('review');
+}
+
+/* ---- question ---- */
+const PROMPTS={
+  goal:'Which code segment will move the robot to the gray goal square?',
+  end:'The code segment below is run. Where is the robot, and which way is it facing, when the code segment ends?',
+  term:'The code segment below is run. Where is the robot, and which way is it facing, when the program ends?',
+  two:'Which of the following code segments will move the robot to the gray goal square? Select two answers.',
+  both:'The same code segment will be run on both grids. Which code segment moves the robot to the goal square on both grids?'
+};
+const KINDS={goal:'Reach the goal',end:'Trace to the end',term:'Trace to the end',two:'Select two answers',both:'Two grids, one program'};
+
+function renderQuestion(host,q,ctx){
+  const isState=q.type==='end'||q.type==='term';
+  host.innerHTML=`<article class="q">
+    <header class="qhead"><h2>${esc(ctx.heading)}</h2><span class="qkind">${KINDS[q.type]}</span></header>
+    <p class="prompt">${esc(PROMPTS[q.type])}</p>
+    ${q.goalFn?'<p class="note">GoalReached() returns true when the robot is in the goal square and false otherwise.</p>':''}
+    <div class="figure"></div>
+    <div class="choices ${isState?'states':'progs'}" role="${q.need===2?'group':'radiogroup'}" aria-label="Answer choices"></div>
+    <div class="qactions"><button class="b primary check" disabled>Check answer</button><span class="hint"></span></div>
+    <div class="feedback" aria-live="polite"></div>
+    <div class="pslot"></div>
+    ${ctx.footer||''}
+  </article>`;
+  const fig=$('.figure',host);
+  q.grids.forEach((g,i)=>{fig.insertAdjacentHTML('beforeend',`<figure class="fig-grid">${gridSVG(g,{robot:g.start,coords:true})}${q.grids.length>1?`<figcaption>Grid ${i+1}</figcaption>`:''}</figure>`);});
+  if(isState){fig.insertAdjacentHTML('beforeend','<div class="fig-code"><div class="code"></div></div>'); renderCode($('.fig-code .code',fig),q.progP);}
+  const box=$('.choices',host);
+  q.items.forEach((it,i)=>{
+    const role=q.need===2?'checkbox':'radio';
+    if(isState){
+      box.insertAdjacentHTML('beforeend',`<button class="choice state" role="${role}" aria-checked="false" data-i="${i}"><span class="letter">(${LET[i]})</span>${gridSVG(q.grids[0],{robot:it.state,cls:'mini'})}<span class="cap">${stateText(it.state)}</span><span class="verdict"></span></button>`);
+    } else {
+      box.insertAdjacentHTML('beforeend',`<button class="choice" role="${role}" aria-checked="false" data-i="${i}"><span class="letter">(${LET[i]})</span><div class="code"></div><span class="verdict"></span></button>`);
+      renderCode($(`.choice[data-i="${i}"] .code`,box),it.prog);
+    }
+  });
+  let sel=[], locked=false;
+  const checkBtn=$('.check',host), hint=$('.hint',host);
+  const sync=()=>{
+    $$('.choice',box).forEach(b=>b.setAttribute('aria-checked',String(sel.includes(+b.dataset.i))));
+    checkBtn.disabled=sel.length!==q.need;
+    hint.textContent=q.need===2?(sel.length<2?`Select two answers (${sel.length} of 2 selected).`:''):'';
+  };
+  $$('.choice',box).forEach(b=>b.onclick=()=>{
+    if(locked) return; const i=+b.dataset.i;
+    if(q.need===1) sel=[i];
+    else if(sel.includes(i)) sel=sel.filter(x=>x!==i);
+    else if(sel.length<2) sel=[...sel,i];
+    sync();
+  });
+  sync();
+
+  function grade(chosen,fresh){
+    locked=true; sel=chosen; sync(); checkBtn.disabled=true; checkBtn.hidden=true; hint.textContent='';
+    const correctIdx=q.items.map((it,i)=>it.correct?i:-1).filter(i=>i>=0);
+    const ok=chosen.length===correctIdx.length&&chosen.every(i=>q.items[i].correct);
+    $$('.choice',box).forEach(b=>{
+      const i=+b.dataset.i, it=q.items[i], v=$('.verdict',b);
+      b.setAttribute('aria-disabled','true');
+      if(it.correct){b.classList.add('is-correct'); v.textContent=chosen.includes(i)?'✓ Your answer is correct':'✓ Correct answer';}
+      else if(chosen.includes(i)){b.classList.add('is-wrong'); v.textContent='✗ Your answer';}
+    });
+    const fb=$('.feedback',host);
+    let h=`<p class="fb-head ${ok?'ok':'no'}">${ok?'✓ Correct':'✗ Not quite'}</p>`;
+    const runs=[], yours=[];
+    if(isState){
+      const g=q.grids[0];
+      h+=`<p>The robot ends at ${posText(q.base.final)}, facing ${DIRS[q.base.final.dir]}${q.base.status==='crashed'?'. It stops there because the program ends when the robot tries to move into a blocked square or off the grid':''}.</p>`;
+      const pick=q.items[chosen[0]];
+      if(!ok&&pick.why) h+=`<p>Your answer is where the robot would end by ${esc(pick.why)}.</p>`;
+      runs.push({label:'Correct trace',prog:q.progP,grid:g,res:q.base,note:'Follow each line to see where the robot really ends.'});
+      if(!ok&&pick.run){yours.push(runs.length); runs.push({label:'Your answer: the mistake',prog:pick.run.prog,grid:g,opts:pick.run.opts,note:`This trace shows what happens when you make the mistake of ${pick.why}.`});}
+    } else {
+      h+='<p>Here is what each code segment does:</p><ul class="outcomes">'+q.items.map((it,i)=>`<li><b>(${LET[i]})</b> ${q.grids.length>1?it.results.map((r,gi)=>`Grid ${gi+1}: ${esc(describeOutcome(r))}`).join(' '):esc(describeOutcome(it.results[0]))}</li>`).join('')+'</ul>';
+      correctIdx.forEach(i=>q.grids.forEach((g,gi)=>runs.push({label:`Correct: (${LET[i]})${q.grids.length>1?`, grid ${gi+1}`:''}`,prog:q.items[i].prog,grid:g,res:q.items[i].results[gi]})));
+      chosen.filter(i=>!q.items[i].correct).forEach(i=>q.grids.forEach((g,gi)=>{yours.push(runs.length); runs.push({label:`Your answer: (${LET[i]})${q.grids.length>1?`, grid ${gi+1}`:''}`,prog:q.items[i].prog,grid:g,res:q.items[i].results[gi]});}));
+    }
+    h+=`<p>The trace below runs the correct answer one step at a time.${runs.length>1?' Use the tabs to switch traces.':''}</p>`;
+    if(yours.length) h+=`<button class="b watch">${isState?'Watch that mistake run':'Watch your answer run'}</button>`;
+    fb.innerHTML=h;
+    const player=createPlayer($('.pslot',host),runs,{autoplay:fresh});
+    const w=$('.watch',fb);
+    if(w) w.onclick=()=>{player.select(yours[0]); player.play(); player.el.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});};
+    if(fresh&&ctx.onAnswer) ctx.onAnswer(chosen,ok);
+  }
+  checkBtn.onclick=()=>grade(sel,true);
+  if(ctx.saved) grade(ctx.saved.sel,false);
+}
+
+/* ---- review ---- */
+function renderReview(){
+  const q=BANK[review.i];
+  app.innerHTML=`<section class="review">
+    <nav class="qnav" aria-label="Questions">${BANK.map((b,i)=>{const a=review.answers[b.id]; return `<button data-i="${i}" class="${a?(a.ok?'ok':'no'):''}" aria-current="${i===review.i}" aria-label="Question ${i+1}${a?(a.ok?', correct':', incorrect'):''}">${i+1}${a?(a.ok?' ✓':' ✗'):''}</button>`;}).join('')}</nav>
+    <div class="qhost"></div></section>`;
+  const go=i=>{review.i=i; stopAll(); renderReview(); window.scrollTo(0,0);};
+  $$('.qnav button').forEach(b=>b.onclick=()=>go(+b.dataset.i));
+  renderQuestion($('.qhost'),q,{
+    heading:`Question ${review.i+1} of ${BANK.length}`,
+    saved:review.answers[q.id],
+    footer:`<div class="qfoot"><button class="b" data-q="-1" ${review.i===0?'disabled':''}>Previous question</button><button class="b primary" data-q="1" ${review.i===BANK.length-1?'disabled':''}>Next question</button></div>`,
+    onAnswer:(sel,ok)=>{
+      review.answers[q.id]={sel,ok}; updateProgress();
+      const nb=$(`.qnav button[data-i="${review.i}"]`); nb.className=ok?'ok':'no'; nb.textContent=`${review.i+1} ${ok?'✓':'✗'}`;
+      nb.setAttribute('aria-label',`Question ${review.i+1}, ${ok?'correct':'incorrect'}`);
+    }
+  });
+  $$('[data-q]').forEach(b=>b.onclick=()=>go(review.i+(+b.dataset.q)));
+}
+
+/* ---- random ---- */
+function renderRandom(){
+  if(!rnd.q){rnd.q=genRandom(); rnd.saved=null;}
+  app.innerHTML=`<section class="random">
+    <div class="rhead"><button class="b primary" id="newq">New random question</button><p>Each question is built on the spot. The simulator runs every answer choice before you see it, so the answer key is always right.</p></div>
+    <div class="qhost"></div></section>`;
+  $('#newq').onclick=()=>{rnd.q=genRandom(); rnd.saved=null; stopAll(); renderRandom();};
+  if(!rnd.q){$('.qhost').innerHTML='<p>Press New random question to build a question.</p>'; return;}
+  renderQuestion($('.qhost'),rnd.q,{
+    heading:'Random practice', saved:rnd.saved,
+    footer:`<div class="qfoot"><span></span><button class="b primary" data-new>Try another one</button></div>`,
+    onAnswer:(sel,ok)=>{rnd.tries++; if(ok) rnd.right++; rnd.saved={sel}; updateProgress();}
+  });
+  $('[data-new]').onclick=()=>{rnd.q=genRandom(); rnd.saved=null; stopAll(); renderRandom(); window.scrollTo(0,0);};
+}
+
+setMode('learn');
+</script>
+</body>
+</html>
